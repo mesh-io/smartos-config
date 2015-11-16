@@ -16,10 +16,18 @@ for tag in ${SYSINFO_Nic_Tags//,/ }; do
 		v6_gw=CONFIG_${tag}${instance}_v6_gateway
 
 		# Be sure ip address and gateway exists
-		if [[ -n "${!v6_ip}" ]]; then
+		if [[ -z "${!v6_ip}" ]]; then
+			break;
+		elif [[ "${!v6_ip}" == "autoconf" ]]; then
+			ipadm create-addr -t -T addrconf ${!iface}/v6a
+			svcadm enable svc:/network/routing/ndp
+		elif [[ "${!v6_ip}" == "dhcp" ]]; then
+			ipadm create-addr -t -T dhcp ${!iface}/v6d
+			svcadm enable svc:/network/routing/ndp
+		else
 			v6_iponly=$(echo ${!v6_ip} | sed 's:/.*::')
-			ifconfig ${!iface} inet6 plumb up
-			ifconfig ${!iface} inet6 addif ${!v6_ip} up
+			ipadm create-addr -t -T static ${!v6_ip} ${!iface}/v6s
+			svcadm enable svc:/network/routing/ndp
 
 			if [[ -n "${!v6_gw}" ]]; then
 				route add -inet6 ${!v6_gw} ${v6_iponly} -interface
